@@ -476,20 +476,22 @@ void loop()                     // run over and over again
   // enter infinite loop...
   while(1)
   {
-/*    if (Serial.read() == '@')
-    { // check if command is '}'
-      download_btsketch();
-    }
-*/
+    //Check for Arduino firmware update via Bluetooth
+    //if (Serial.read() == '@')
+    //{ // check if command is '}'
+    //  download_btsketch();
+    //}
 
     //Only draw/update every 30ms, since ~30Hz refresh rate acceptable for motion
     //  Timer functions will update every 10ms for greater timing accuracy
     if ((active_screen == TIMER_XY) || (active_screen == TIMER_FATS))
       loop_time = 10;
+    else if (active_screen == CAN_SNIFFER)
+      loop_time = 0;
     else
       loop_time = 30;
     
-    if ((millis()-timerloop) > loop_time)
+    if ((millis()-timerloop) >= loop_time)
     {
       if (prev_active_screen == active_screen)
       {
@@ -1879,7 +1881,7 @@ void draw_sniffer()
     NTSC_Term_Print("CANBUS problem, sniffer not running!/");
   }
   
-  attachInterrupt(0,Canbus_ISR,FALLING);
+  //###attachInterrupt(0,Canbus_ISR,FALLING);
   
 }
 
@@ -1888,6 +1890,10 @@ void draw_sniffer()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void update_sniffer()
 {
+  if (Canbus.message_rx((unsigned char*)read_buffer) == 1)
+  {
+    canbus_to_serial(&read_buffer[0]);
+  }
   
 }
 
@@ -3668,6 +3674,7 @@ void check_for_reinit()
     delay(100);
     Serial.begin(57600);
     Canbus.init(CANSPEED_100A,FILTER_ON);
+    attachInterrupt(0,Canbus_ISR,FALLING);
   }
   
   if (((prev_active_screen >= CONFIG_SET) && (prev_active_screen <= CAN_SNIFFER)) && (active_screen < CONFIG_SET))
