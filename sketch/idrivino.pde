@@ -640,6 +640,7 @@ void loop()                     // run over and over again
         
         GFX_ClearMainWindow();
         prev_active_screen = 99;
+        update_fails = 0;
       }
       
       timerloop = millis();
@@ -650,7 +651,7 @@ void loop()                     // run over and over again
     
     boost_psi = (analogRead(BOOST_ADC_PIN)*0.0049)*8.94-14.53;  //GM 3-bar sensor scaling: V*8.94 - 14.53
     
-    if ((boost_psi >= 3.5) && (digitalRead(METH_FLOAT_PIN) == LOW)) //###
+    if ((boost_psi >= 3.5) && (curr_map_sel > 0) && (digitalRead(METH_FLOAT_PIN) == LOW)) //###
     {
       //turn meth output pin on
       digitalWrite(METH_OUT_PIN,HIGH);
@@ -1954,9 +1955,12 @@ void update_bottom_menu()
   {
     oil_temp = lookup_single_param(PROCEDE_OIL_TEMP);
     
+    //Procede goes into boost protection at these temps
     if ((oil_temp < 170) || (oil_temp > 260))
     {
-      curr_at_boost_lvl = 880;
+      //curr_at_boost_lvl = 880;
+      //Instead of showing stock boost of ~8.8psi, show the % when full boost is activated
+      curr_at_boost_lvl = oil_temp/170.0*10000;
     }
     else
     {
@@ -3650,7 +3654,7 @@ int check_for_shutdown()
     engine_start = false;
     counter++;
   }
-  else if ((lookup_single_param(PROCEDE_RPM) > 0) && (engine_start == false))
+  else if ((lookup_single_param(PROCEDE_RPM) > 100) && (engine_start == false))
   {
     engine_start = true;
     counter = 0;
