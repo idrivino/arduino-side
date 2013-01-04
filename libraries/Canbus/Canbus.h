@@ -42,7 +42,8 @@ class CanbusClass
     char init(unsigned char,unsigned char);
 	char message_tx(unsigned char *buffer);
 	char message_rx(unsigned char *buffer);
-	char ecu_req(unsigned char pid,  char *buffer);
+	//char ecu_req(unsigned char pid,  char *buffer);
+     char ecu_req(int *buffer);
 private:
 	
 };

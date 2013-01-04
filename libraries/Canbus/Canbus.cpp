@@ -132,7 +132,7 @@ return 1;
  
 }
 
-char CanbusClass::ecu_req(unsigned char pid, char *buffer) 
+/*char CanbusClass::ecu_req(unsigned char pid, char *buffer) 
 {
 	tCAN message;
 	float engine_data;
@@ -168,7 +168,7 @@ char CanbusClass::ecu_req(unsigned char pid, char *buffer)
 				if((message.id == PID_REPLY) && (message.data[2] == pid))	// Check message is the reply and its the right PID
 				{
 					switch (message.data[2])
-					{   /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
+					{   // Details from http://en.wikipedia.org/wiki/OBD-II_PIDs
 						case ENGINE_RPM:  			//   ((A*256)+B)/4    [RPM]
 						engine_data =  ((message.data[3]*256) + message.data[4])/4;
 						sprintf(buffer,"%d",(int) engine_data);
@@ -236,8 +236,40 @@ char CanbusClass::ecu_req(unsigned char pid, char *buffer)
 	}
 
  	return 0;
-}
+}*/
 
+char CanbusClass::ecu_req(int *buffer)
+{
+	tCAN message;
+
+
+          if (mcp2515_check_message())
+           {
+
+
+                   if (mcp2515_get_message(&message))
+                   {
+
+                                buffer[0] = message.id;
+
+				buffer[1] = message.data[0];
+				buffer[2] = message.data[1];
+				buffer[3] = message.data[2];
+				buffer[4] = message.data[3];
+				buffer[5] = message.data[4];
+				buffer[6] = message.data[5];
+				buffer[7] = message.data[6];
+				buffer[8] = message.data[7];
+				buffer[10] = message.header.length;
+                                 return 1;
+
+                    }
+             }
+
+         else {
+              return 0;
+              }
+}
 
 
 

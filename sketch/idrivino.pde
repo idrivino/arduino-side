@@ -4,7 +4,7 @@
 //
 // Original Author: Constant Yu
 // 
-// Last Modified: 7.01.2012
+// Last Modified: 1.4.2013
 //
 // Description: iDrivino System
 //  
@@ -337,7 +337,7 @@ void find_can_id(unsigned short);
 int check_for_shutdown();
 void verify_config();
 void command_memorycheck();
-void canbus_to_serial(unsigned char *);
+//void canbus_to_serial(unsigned char *);
 
 //Interrupt Service Routine (ISR)
 void Canbus_ISR();
@@ -432,7 +432,7 @@ void loop()                     // run over and over again
   procedeRS232.begin(57600);
 */
     
-  /*if (procede_init())
+  if (procede_init())
   {
     NTSC_Term_Print("Procede init OK/");
   }
@@ -440,12 +440,12 @@ void loop()                     // run over and over again
   {
     NTSC_Term_Print("Cannot init Procede!/");
     NTSC_Term_Print("Entering simulation mode.../");
-  }*/
-  while (procede_init() == 0)
+  }
+  /*while (procede_init() == 0)
   {
     //procede_init() already has 1 sec delay leaving sub
     _delay_ms(2000);
-  }
+  }*/
   
   //draw_intro();
   NTSC_ClearScreen();
@@ -1858,6 +1858,9 @@ void update_logging()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void draw_sniffer()
 {
+  char buff_out[16] = {0};
+  int buffer[36];  
+  
   GFX_ClearMainWindow();
 
   detachInterrupt(0);
@@ -1874,7 +1877,8 @@ void draw_sniffer()
     Serial.begin(115200);
     delay(50);
     Serial.flush();
-    NTSC_Term_Print("CANBUS sniffer running.../");
+    NTSC_Term_Print("CANBUS sniffer running on COM port.../");
+    NTSC_Term_Print("Reboot iDrivino to exit/");
     sniff_start = millis();
   }
   else
@@ -1882,7 +1886,39 @@ void draw_sniffer()
     NTSC_Term_Print("CANBUS problem, sniffer not running!/");
   }
   
-  //###attachInterrupt(0,Canbus_ISR,FALLING);
+  //while loop effectively locks up iDrivino from further use, requiring reboot to get
+  //  out of CAN sniffer mode.  Just sit here and output CAN messages to the serial port...
+  while (1)
+  {
+    //Check for new CAN messages
+    if(Canbus.ecu_req(buffer) == 1)
+    {
+      sprintf(buff_out,"%dms, 0x",(int)(millis()-sniff_start));
+      Serial.print(buff_out);
+      
+      if(buffer[0] <=255)                     
+      {
+        Serial.print("0x0");
+      } // write lead character
+      else
+      {
+        Serial.print("0x");
+      } // write lead character
+        
+      Serial.print(buffer[0],HEX); // ID
+      Serial.print(" ");
+      Serial.print(buffer[10]); //Length
+      Serial.print(" ");
+      for (int x=1; x<=buffer[10]; x++) // Only write the number of data bytes available
+      {
+        Serial.print(buffer[x]);
+        Serial.print(" ");
+      }
+      Serial.println(" "); // New line
+    }
+    
+    delay(1);
+  } //end while(1)
   
 }
 
@@ -1891,10 +1927,11 @@ void draw_sniffer()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void update_sniffer()
 {
-  if (Canbus.message_rx((unsigned char*)read_buffer) == 1)
+  //Now unused
+  /*if (Canbus.message_rx((unsigned char*)read_buffer) == 1)
   {
     canbus_to_serial(&read_buffer[0]);
-  }
+  }*/
   
 }
 
@@ -3378,11 +3415,11 @@ void right_prompt()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void canbus_to_serial(unsigned char *buff_in)
+/*void canbus_to_serial(unsigned char *buff_in)
 {
   //char buff_temp[7] = {0};
   char buff_out[16] = {0};
-
+  
   sprintf(buff_out,"%dms, 0x",(int)(millis()-sniff_start));
   Serial.print(buff_out);
   //strcpy(buff_out,buff_temp);
@@ -3419,14 +3456,9 @@ void canbus_to_serial(unsigned char *buff_in)
   }
   
   Serial.println("");
-  
-/*  if (can_count >= 1)
-  {
-    --can_count;
-    canbus_to_serial(&read_buffer_temp[can_count][0]);
-  }
-*/  
-}
+
+}*/
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Check for highlighted window //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3469,21 +3501,20 @@ void read_canbus_message()
     }
     
     //Route CAN message to serial (BT)
-    if (active_screen == CAN_SNIFFER)
+    /*if (active_screen == CAN_SNIFFER)
     {
       for (byte i=0;i<19;i++)
       {
         //read_buffer_temp[can_count][i] = read_buffer[i];
         read_buffer_temp[i] = read_buffer[i];
       }
-      //canbus_to_serial(&read_buffer_temp[can_count][0]);
       canbus_to_serial(&read_buffer_temp[0]);
       //Serial.print(can_count);
       if (can_count < 9) 
       {
         //can_count++;
       }
-    }
+    }*/
     
     can_cmd = (read_buffer[1] << 8) + read_buffer[0];
     //sprintf(buff,"buf1 = 0x%x, buf0 = 0x%x, sum=0x%x",read_buffer[1],read_buffer[0],can_cmd);
@@ -3668,7 +3699,7 @@ int check_for_shutdown()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Check for  ///////////////////////////////////////////////////////////////////////////////////////////
+// Check for Reinitialization after running CAN Sniffer //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void check_for_reinit()
 {
