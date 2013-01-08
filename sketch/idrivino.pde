@@ -1858,7 +1858,8 @@ void update_logging()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void draw_sniffer()
 {
-  char buff_out[16] = {0};
+  //char buff_out[16] = {0};
+  unsigned long sniff_delta = 0;
   int buffer[36];  
   
   GFX_ClearMainWindow();
@@ -1893,16 +1894,18 @@ void draw_sniffer()
     //Check for new CAN messages
     if(Canbus.ecu_req(buffer) == 1)
     {
-      sprintf(buff_out,"%dms, ",(millis()-sniff_start));
-      Serial.print(buff_out);
+      //sprintf(buff_out,"%dms, ",(millis()-sniff_start));
+      //Serial.print(buff_out);
+      sniff_delta = millis() - sniff_start;
+      Serial.print(sniff_delta);
       
-      if(buffer[0] <=255)                     
+      if(buffer[0] <= 255)                     
       {
-        Serial.print("0x0");
+        Serial.print("ms 0x0");
       } // write lead character
       else
       {
-        Serial.print("0x");
+        Serial.print("ms 0x");
       } // write lead character
         
       Serial.print(buffer[0],HEX); // ID
