@@ -1893,7 +1893,7 @@ void draw_sniffer()
     //Check for new CAN messages
     if(Canbus.ecu_req(buffer) == 1)
     {
-      sprintf(buff_out,"%dms, 0x",(int)(millis()-sniff_start));
+      sprintf(buff_out,"%dms, ",(millis()-sniff_start));
       Serial.print(buff_out);
       
       if(buffer[0] <=255)                     
