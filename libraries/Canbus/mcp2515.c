@@ -296,11 +296,18 @@ uint8_t mcp2515_init(uint8_t speed,uint8_t filter)
 	//clear overflow bits (optional?)
 	//mcp2515_write_register(EFLG,(0<<RX1OVR)|(0<<RX0OVR));
 		
-	// reset device to normal mode
-	//mcp2515_write_register(CANCTRL, 0);
-	//listen only mode for autobaud
-    mcp2515_write_register(CANCTRL, 0x60);  //0x60 = listen only
+	
+	//listen only mode for autobaud/filtered
+     if (filter == 1)
+	{
+        mcp2515_write_register(CANCTRL, 0x60);  //0x60 = listen only
 //	SET(LED2_HIGH);
+     }
+	else
+	{
+	// set device to normal mode (r+w)
+	  mcp2515_write_register(CANCTRL, 0);
+	}
 
 	//mcp2515_loopback();
 

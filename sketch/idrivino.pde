@@ -193,6 +193,9 @@
 #define FOCUSP_MAX  10
 #define FOCUST_MAX  10
 
+#define TXT_FMT    2
+#define CAN232_FMT 3
+
 // define CPU frequency in Mhz here if not defined in Makefile or other includes, compiler will throw a warning, ignore
 #ifndef F_CPU
 #define F_CPU 16000000UL // 28636360UL, 14318180UL, 21477270 UL
@@ -1858,9 +1861,11 @@ void update_logging()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void draw_sniffer()
 {
-  //char buff_out[16] = {0};
+  unsigned char buff_out[16] = {0};
   unsigned long sniff_delta = 0;
-  int buffer[36];  
+  int buffer[16];
+  int output_format = CAN232_FMT;
+  int cmd,i;
   
   GFX_ClearMainWindow();
 
@@ -1878,7 +1883,7 @@ void draw_sniffer()
     Serial.begin(115200);
     delay(50);
     Serial.flush();
-    NTSC_Term_Print("CANBUS sniffer running on COM port.../");
+    NTSC_Term_Print("CANBUS sniffer running on BT & COM port.../");
     NTSC_Term_Print("Reboot iDrivino to exit/");
     sniff_start = millis();
   }
@@ -1892,35 +1897,86 @@ void draw_sniffer()
   while (1)
   {
     //Check for new CAN messages
-    if(Canbus.ecu_req(buffer) == 1)
+    if (Canbus.ecu_req(buffer) == 1)
     {
-      //sprintf(buff_out,"%dms, ",(millis()-sniff_start));
-      //Serial.print(buff_out);
       sniff_delta = millis() - sniff_start;
-      Serial.print(sniff_delta);
-      
-      if(buffer[0] <= 255)                     
+      if (output_format == TXT_FMT)
       {
-        Serial.print("ms 0x0");
-      } // write lead character
-      else
-      {
-        Serial.print("ms 0x");
-      } // write lead character
+        Serial.print(sniff_delta);
         
-      Serial.print(buffer[0],HEX); // ID
-      Serial.print(" ");
-      Serial.print(buffer[10]); //Length
-      Serial.print(" ");
-      for (int x=1; x<=buffer[10]; x++) // Only write the number of data bytes available
-      {
-        Serial.print(buffer[x]);
+        if (buffer[0] <= 255)                     
+        {
+          Serial.print("ms 0x0");
+        } // write lead character
+        else
+        {
+          Serial.print("ms 0x");
+        } // write lead character
+          
+        Serial.print(buffer[0],HEX); // ID
         Serial.print(" ");
+        Serial.print(buffer[10]); //Length
+        Serial.print(" ");
+        for (int x=1; x<=buffer[10]; x++) // Only write the number of data bytes available
+        {
+          Serial.print(buffer[x]);
+          Serial.print(" ");
+        }
+        Serial.println(" "); // New line
       }
-      Serial.println(" "); // New line
+      else //Output Lawicel CAN232 format
+      {
+        //Following format works well with programs which expect the Lawicel CAN232 device
+        Serial.print("t");
+        if(buffer[0] <= 255)                     
+        {
+          Serial.print("0");
+        } // write padded 0 to fit format
+        Serial.print(buffer[0],HEX); // ID
+        Serial.print(buffer[10],HEX); //Length
+        for (int x=1; x<=buffer[10]; x++) // Only write the number of data bytes available
+        {
+          Serial.print(buffer[x],HEX);
+        }
+        //Serial.print((int)sniff_delta,HEX);  //add timestamp
+        Serial.print('\r'); // carriage return
+      }
+    }
+    else //check for 'other' serial data
+    {
+      /*if ((Serial.available() > 0) && (init_232 == false))
+      {
+        cmd = Serial.read();
+        if ((cmd == 'S') || (cmd == 's') || (cmd == 'O') || (cmd == 'L') || (cmd == 'C') || (cmd == 'U') || (cmd == 'X') || (cmd == 'Z'))
+        {
+          while (Serial.available() > 0)
+          { 
+            cmd = Serial.read();
+          }
+          Serial.print('\r');
+          init_232 = true;
+        }
+      }*/
+      
+      if (Serial.available() > 0)
+      {
+        cmd = Serial.read();
+        if (cmd == 't')
+        {
+          i = 0;
+          while (Serial.available() > 0)
+          {
+            buff_out[i] = Serial.read();
+            i++;
+          }
+          Canbus.message_tx(buff_out);
+        }
+        Serial.print('\r');
+      }
+      
     }
     
-    delay(1);
+    
   } //end while(1)
   
 }
