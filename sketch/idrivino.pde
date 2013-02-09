@@ -1866,6 +1866,7 @@ void draw_sniffer()
   int buffer[16];
   int output_format = CAN232_FMT;
   int cmd,i;
+  static char autopoll = 1;
   
   GFX_ClearMainWindow();
 
@@ -1897,7 +1898,7 @@ void draw_sniffer()
   while (1)
   {
     //Check for new CAN messages
-    if (Canbus.ecu_req(buffer) == 1)
+    if ((Canbus.ecu_req(buffer) == 1) && (autopoll == 1))
     {
       sniff_delta = millis() - sniff_start;
       if (output_format == TXT_FMT)
@@ -1970,6 +1971,14 @@ void draw_sniffer()
             i++;
           }
           Canbus.message_tx(buff_out);
+        }
+        else if (cmd == "X0")
+        {
+          autopoll = 0;
+        }
+        else if (cmd == "X1")
+        {
+          autopoll = 1;
         }
         Serial.print('\r');
       }
