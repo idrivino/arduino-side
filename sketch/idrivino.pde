@@ -4,7 +4,7 @@
 //
 // Original Author: Constant Yu
 // 
-// Last Modified: 1.4.2013
+// Last Modified: 3.14.2013
 //
 // Description: iDrivino System
 //  
@@ -224,6 +224,7 @@ short startcount = FLASH_LOG_OFFSET;
 int tempint;
 float tempfloat;
 float boost_psi = 0.0;
+unsigned long meth_on_time;
 
 //Gauge & menu related variables
 byte active_screen = 1;
@@ -341,6 +342,7 @@ int check_for_shutdown();
 void verify_config();
 void command_memorycheck();
 //void canbus_to_serial(unsigned char *);
+void activate_meth();
 
 //Interrupt Service Routine (ISR)
 void Canbus_ISR();
@@ -365,7 +367,7 @@ void setup()                    // run once, when the sketch starts
 void loop()                     // run over and over again
 {
   unsigned long timerloop = millis();
-  unsigned long meth_on_time;
+//  unsigned long meth_on_time;
   //int autobaud = -1;
   int cnt = 0;
   byte loop_time = 30;
@@ -630,14 +632,16 @@ void loop()                     // run over and over again
       
       check_for_reinit();
       check_for_highlight_timeout();
+      check_for_shutdown();
       
       prev_active_screen = active_screen;
 
-      if ((check_for_shutdown() > 30) || (update_fails > 30))
+      if (update_fails > 30)
       {
         do
         {
-          delay(1000);
+          activate_meth();  //allow methanol to flow even if comms lost to Procede
+          delay(10);
         }
         while (procede_init() == false);
         
@@ -652,8 +656,19 @@ void loop()                     // run over and over again
     read_canbus_message();
     update_screen_from_iDrive();
     
-    boost_psi = (analogRead(BOOST_ADC_PIN)*0.0049)*8.94-14.53;  //GM 3-bar sensor scaling: V*8.94 - 14.53
+    boost_psi = (analogRead(BOOST_ADC_PIN)*0.0049)*8.94-14.53;  //GM 3-bar sensor scaling: V*8.94 - 14.53  
+    activate_meth();
     
+  } // end while(1)    
+
+} // end main
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Activate Meth Injection ///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void activate_meth()
+{
+  
     if ((boost_psi >= 3.5) && (curr_map_sel > 0) && (digitalRead(METH_FLOAT_PIN) == LOW)) //###
     {
       //turn meth output pin on
@@ -669,10 +684,8 @@ void loop()                     // run over and over again
         digitalWrite(METH_OUT_PIN,LOW);
       }
     }
-    
-  } // end while(1)    
 
-} // end main
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Load Config File //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1884,14 +1897,14 @@ void draw_sniffer()
     Serial.begin(115200);
     delay(50);
     Serial.flush();
-    NTSC_Term_Print("CANBUS sniffer running on BT & COM port.../");
-    NTSC_Term_Print("Reboot iDrivino to exit/");
+    NTSC_Term_Print("CANBUS sniffer running on BT & COM port/");
     sniff_start = millis();
   }
   else
   {
     NTSC_Term_Print("CANBUS problem, sniffer not running!/");
   }
+  NTSC_Term_Print("Reboot iDrivino to exit.../");
   
   //while loop effectively locks up iDrivino from further use, requiring reboot to get
   //  out of CAN sniffer mode.  Just sit here and output CAN messages to the serial port...
@@ -1945,20 +1958,6 @@ void draw_sniffer()
     }
     else //check for 'other' serial data
     {
-      /*if ((Serial.available() > 0) && (init_232 == false))
-      {
-        cmd = Serial.read();
-        if ((cmd == 'S') || (cmd == 's') || (cmd == 'O') || (cmd == 'L') || (cmd == 'C') || (cmd == 'U') || (cmd == 'X') || (cmd == 'Z'))
-        {
-          while (Serial.available() > 0)
-          { 
-            cmd = Serial.read();
-          }
-          Serial.print('\r');
-          init_232 = true;
-        }
-      }*/
-      
       if (Serial.available() > 0)
       {
         cmd = Serial.read();
@@ -1972,20 +1971,17 @@ void draw_sniffer()
           }
           Canbus.message_tx(buff_out);
         }
-        else if (cmd == "X0")
+        else if (cmd == 'X')
         {
-          autopoll = 0;
-        }
-        else if (cmd == "X1")
-        {
-          autopoll = 1;
+          cmd = Serial.read();
+          if (cmd == '0')
+            autopoll = 0;
+          else if (cmd == '1')
+            autopoll = 1;
         }
         Serial.print('\r');
       }
-      
     }
-    
-    
   } //end while(1)
   
 }
@@ -2845,7 +2841,7 @@ boolean procede_init()
   NTSC_Term_Print("Connecting to Procede ECU");
   Serial.flush();
   
-  for (i=0;i<retries;i++)
+  for (i=0;i<retries*10;i++)
   {
     NTSC_Term_Print("..");
     
@@ -2889,8 +2885,12 @@ boolean procede_init()
     _delay_ms(200);
   }
   
-  if (statusp == false) 
+  if (statusp == false)
+  {
     NTSC_Term_Print("fail/");
+    //If Procede does not respond to ACK (0xff) command, don't bother going on
+    return statusp;
+  }
   
   _delay_ms(10);
   NTSC_Term_Print("Querying Procede ID");
@@ -3758,10 +3758,10 @@ int check_for_shutdown()
     engine_start = true;
     counter = 0;
   }
-  else if ((engine_start == false) && (boost_psi < -2.0))
+  /*else if ((engine_start == false) && (boost_psi < -2.0))
   {
     //counter++;
-  }
+  }*/
 
   return counter;
 }
