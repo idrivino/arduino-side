@@ -4,7 +4,7 @@
 //
 // Original Author: Constant Yu
 // 
-// Last Modified: 3.14.2013
+// Last Modified: 3.29.2013
 //
 // Description: iDrivino System
 //  
@@ -205,10 +205,8 @@
 // GLOBALS ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Timer vars
-byte timer_active = false;
-unsigned long start_time = 0;
+boolean timer_active = false;
 unsigned long end_time = 0;
-unsigned long sniff_start = 0;
 unsigned long idrive_timer = 0;
 unsigned long log_timer = 0;
 unsigned long log_start = 0;
@@ -224,7 +222,6 @@ short startcount = FLASH_LOG_OFFSET;
 int tempint;
 float tempfloat;
 float boost_psi = 0.0;
-unsigned long meth_on_time;
 
 //Gauge & menu related variables
 byte active_screen = 1;
@@ -367,7 +364,6 @@ void setup()                    // run once, when the sketch starts
 void loop()                     // run over and over again
 {
   unsigned long timerloop = millis();
-//  unsigned long meth_on_time;
   //int autobaud = -1;
   int cnt = 0;
   byte loop_time = 30;
@@ -668,11 +664,12 @@ void loop()                     // run over and over again
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void activate_meth()
 {
+    static unsigned long meth_on_time = 0;
   
     if ((boost_psi >= 3.5) && (curr_map_sel > 0) && (digitalRead(METH_FLOAT_PIN) == LOW)) //###
     {
       //turn meth output pin on
-      digitalWrite(METH_OUT_PIN,HIGH);
+      analogWrite(METH_OUT_PIN,127);
       meth_on_time = millis();
     }
     else
@@ -681,7 +678,7 @@ void activate_meth()
       //  this prevents rapid cycling of the output pin if directly driving a pump relay, control box, etc
       if ((millis()-meth_on_time) > 1000)
       {
-        digitalWrite(METH_OUT_PIN,LOW);
+        analogWrite(METH_OUT_PIN,0);
       }
     }
 
@@ -1876,6 +1873,7 @@ void draw_sniffer()
 {
   unsigned char buff_out[16] = {0};
   unsigned long sniff_delta = 0;
+  static unsigned long sniff_start = 0;
   int buffer[16];
   int output_format = CAN232_FMT;
   int cmd,i;
@@ -2611,6 +2609,7 @@ int lookup_single_param(short lookup)
 unsigned long start_stop_timer(unsigned short start_speed, unsigned short end_speed)
 {  
   unsigned short temp_start = start_speed;
+  static unsigned long start_time = 0;
   
   //Check if timer is currently active
   if (timer_active == true)
